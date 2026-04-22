@@ -1,0 +1,368 @@
+{
+  "name": "Bank PII Leak Detector (TikTok)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        2096,
+        832
+      ],
+      "id": "065f8ca4-0bc3-463c-8b84-1d3e3c7eb6cf",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "url": "https://tiktok-api23.p.rapidapi.com/api/search/video",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "keyword",
+              "value": "bank duty pakistan"
+            },
+            {
+              "name": "region",
+              "value": "pk"
+            },
+            {
+              "name": "cursor",
+              "value": "0"
+            },
+            {
+              "name": "search_id",
+              "value": "0"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "tiktok-api23.p.rapidapi.com"
+            },
+            {
+              "name": "x-rapidapi-key",
+              "value": "YOUR_RAPIDAPI_KEY_HERE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "67d9e3a8-51dd-4674-8d1a-a6c3a04b0f22",
+      "name": "Scrape TikTok (RapidAPI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2320,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "item_list",
+        "options": {}
+      },
+      "id": "af3028b4-8b62-4175-bd93-0164447550c4",
+      "name": "Split Videos",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        2544,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-username",
+              "name": "username",
+              "value": "={{ $json.author.uniqueId }}",
+              "type": "string"
+            },
+            {
+              "id": "field-displayname",
+              "name": "displayName",
+              "value": "={{ $json.author.nickname }}",
+              "type": "string"
+            },
+            {
+              "id": "field-desc",
+              "name": "description",
+              "value": "={{ $json.desc }}",
+              "type": "string"
+            },
+            {
+              "id": "field-videoid",
+              "name": "videoId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-cover",
+              "name": "coverUrl",
+              "value": "={{ $json.video.cover }}",
+              "type": "string"
+            },
+            {
+              "id": "field-likes",
+              "name": "likes",
+              "value": "={{ $json.stats.diggCount }}",
+              "type": "number"
+            },
+            {
+              "id": "field-views",
+              "name": "views",
+              "value": "={{ $json.stats.playCount }}",
+              "type": "number"
+            },
+            {
+              "id": "field-time",
+              "name": "createdAt",
+              "value": "={{ $json.createTime }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f5c74ab8-14ee-4064-9177-838fe2b7b512",
+      "name": "Save Metadata",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        2768,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        1088
+      ],
+      "id": "d52f154c-9a98-44e4-b3a9-a50d7e25d4c6",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GROQ_API_KEY_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'meta-llama/llama-4-scout-17b-16e-instruct', messages: [{ role: 'user', content: [ { type: 'image_url', image_url: { url: $json.coverUrl } }, { type: 'text', text: 'Analyze this image. State ONLY if there is any visible PII breach, data leak, or possible chance of it (like exposed computer screens, restricted documents, CNICs, ID cards, account numbers, email addresses, forms, or bank cards). If NO leak/breach is visible, reply EXACTLY with \\\"No leak\\\". If YES, briefly describe the exposed information.' } ] }], max_tokens: 150 }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 8000
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "59be42d5-6dbf-46c6-a833-808bbc2373c5",
+      "name": "Groq Vision AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2304,
+        1088
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-pii-check",
+              "leftValue": "={{ $json.choices?.[0]?.message?.content ?? '' }}",
+              "rightValue": "cnic|national.?id|passport|restrict|confidential|document|form|screen|computer|email|account|statement|card|atm|teller|cash|money|cheque|check|sensitive|pii|leak|breach|exposed",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "b5f3a980-e89e-498a-84c5-0f38fd7b57d0",
+      "name": "Filter: PII Detected?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.toISO() }}",
+            "TikTok Username": "={{ $('Save Metadata').item.json.username }}",
+            "Display Name": "={{ $('Save Metadata').item.json.displayName }}",
+            "Video Description": "={{ $('Save Metadata').item.json.description }}",
+            "Video URL": "={{ 'https://www.tiktok.com/@' + $('Save Metadata').item.json.username + '/video/' + $('Save Metadata').item.json.videoId }}",
+            "Thumbnail URL": "={{ $('Save Metadata').item.json.coverUrl }}",
+            "AI Caption (What Is Visible)": "={{ $('Groq Vision AI').item.json.choices?.[0]?.message?.content ?? 'No description' }}",
+            "Likes": "={{ $('Save Metadata').item.json.likes }}",
+            "Views": "={{ $('Save Metadata').item.json.views }}",
+            "Video Created At": "={{ $('Save Metadata').item.json.createdAt }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "e638b7d3-1074-4f12-ac73-13ae2e827056",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.3,
+      "position": [
+        2784,
+        1088
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Scrape TikTok (RapidAPI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape TikTok (RapidAPI)": {
+      "main": [
+        [
+          {
+            "node": "Split Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Videos": {
+      "main": [
+        [
+          {
+            "node": "Save Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Metadata": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Groq Vision AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Vision AI": {
+      "main": [
+        [
+          {
+            "node": "Filter: PII Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter: PII Detected?": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1d6aa9b7-cc3e-4e3c-9686-a4350e2cfd77",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "362247d01b9821636ac5dfa4e490e45081eceb051bffb46d52ece7390e2f4ab7"
+  },
+  "id": "xqDUgesMHtcaVJ4V",
+  "tags": []
+}
