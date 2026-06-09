@@ -4,7 +4,7 @@ TruthSeeker — Streamlit Frontend
 A premium fact-checking interface powered by the CRAG pipeline.
 
 Usage:
-    streamlit run app.py
+    streamlit run src/app.py
 """
 
 import streamlit as st

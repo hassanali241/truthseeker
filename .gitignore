@@ -24,4 +24,8 @@ data/
 Thumbs.db
 
 # Test files
-test_graph.py
+tests/test_graph.py
+
+# PDFs — exclude all except Walkthrough
+docs/*.pdf
+!docs/TruthSeeker_Walkthrough.pdf

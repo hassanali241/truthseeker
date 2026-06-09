@@ -5,7 +5,7 @@ Loads True.csv, chunks articles, generates embeddings,
 and inserts everything into Supabase (pgvector).
 
 Usage:
-    python ingest.py
+    python src/ingest.py       (run from project root)
 """
 
 import os

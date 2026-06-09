@@ -13,11 +13,9 @@ Usage:
     result = graph.invoke({"claim": "Some claim to fact-check"})
 """
 
-import os
 import time
 import datetime
-from typing import TypedDict, List, Annotated
-from dotenv import load_dotenv
+from typing import TypedDict, List
 
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -29,24 +27,7 @@ from tavily import TavilyClient
 
 from langgraph.graph import StateGraph, END
 
-# ── Load environment ───────────────────────────────────────────────
-# Supports both local (.env file) and Streamlit Cloud (st.secrets)
-load_dotenv()
-
-def _get_secret(key: str) -> str:
-    """Read from Streamlit secrets (cloud) or .env (local)."""
-    try:
-        import streamlit as st
-        if key in st.secrets:
-            return st.secrets[key]
-    except Exception:
-        pass
-    return os.getenv(key)
-
-SUPABASE_URL = _get_secret("SUPABASE_URL")
-SUPABASE_KEY = _get_secret("SUPABASE_KEY")
-GROQ_API_KEY = _get_secret("GROQ_API_KEY")
-TAVILY_API_KEY = _get_secret("TAVILY_API_KEY")
+from config import SUPABASE_URL, SUPABASE_KEY, GROQ_API_KEY, TAVILY_API_KEY
 
 # ── Initialize clients ────────────────────────────────────────────
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
